@@ -1,8 +1,8 @@
-version: "3.8"
-
 services:
   vcontrold-adapter:
-    build: .
+    build:
+      context: .
+      dockerfile: Containerfile
     image: vcontrold-ha-mqtt-adapter:latest
     container_name: vcontrold-adapter
     restart: unless-stopped

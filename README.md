@@ -8,7 +8,7 @@ A TypeScript-based microservice that bridges vcontrold (Viessmann heating contro
 - 🏠 **Home Assistant MQTT Discovery**: Automatic sensor discovery in Home Assistant
 - 📊 **Configurable Sensors**: Define any vcontrold commands as sensors
 - 🔄 **Automatic Polling**: Configurable polling interval for sensor updates
-- 🐳 **Docker Support**: Ready-to-deploy OCI container
+- 🐳 **Container Support**: Ready-to-deploy OCI container
 - ⚙️ **12-Factor App**: All configuration via environment variables
 - 📝 **Structured Logging**: Winston-based logging with configurable levels
 - 🔒 **Graceful Shutdown**: Proper cleanup on SIGTERM/SIGINT
@@ -35,7 +35,7 @@ A TypeScript-based microservice that bridges vcontrold (Viessmann heating contro
 ## Prerequisites
 
 - Node.js 22+ (for local development)
-- Docker (for containerized deployment)
+- Podman or Docker (for containerized deployment)
 - Running vcontrold instance
 - Running MQTT broker (e.g., Mosquitto)
 - Home Assistant with MQTT integration
@@ -100,29 +100,29 @@ pnpm start
 pnpm run dev
 ```
 
-## Docker Deployment
+## Container Deployment
 
-### Using Docker Compose (Recommended)
+### Using Podman Compose (Recommended)
 
 ```bash
 # Build and start
-docker-compose up -d
+podman-compose up -d
 
 # View logs
-docker-compose logs -f
+podman-compose logs -f
 
 # Stop
-docker-compose down
+podman-compose down
 ```
 
-### Using Docker Directly
+### Using Podman/Docker Directly
 
 ```bash
 # Build image
-docker build -t vcontrold-ha-mqtt-adapter .
+podman build -t vcontrold-ha-mqtt-adapter .
 
 # Run container
-docker run -d \
+podman run -d \
   --name vcontrold-adapter \
   --env-file .env \
   --restart unless-stopped \
@@ -246,7 +246,7 @@ sensor:
 telnet your-vcontrold-host 3002
 
 # Check adapter logs
-docker-compose logs -f
+podman-compose logs -f
 ```
 
 **Problem**: Adapter can't connect to MQTT broker
@@ -266,7 +266,7 @@ mosquitto_sub -h your-mqtt-broker -t "#" -v
 2. Verify `MQTT_DISCOVERY_PREFIX` matches Home Assistant configuration
 3. Check adapter logs for discovery messages:
    ```bash
-   docker-compose logs -f | grep "discovery"
+   podman-compose logs -f | grep "discovery"
    ```
 
 **Problem**: Sensor values not updating
@@ -306,8 +306,8 @@ vcontrold-ha-mqtt-adapter/
 ├── sensors.json              # Sensor configuration (created by user)
 ├── sensors.example.json      # Example sensor configuration
 ├── .gitignore
-├── Dockerfile                # Multi-stage Docker build
-├── docker-compose.yml
+├── Containerfile             # Multi-stage OCI container build
+├── compose.yml
 ├── package.json
 ├── tsconfig.json
 └── README.md
