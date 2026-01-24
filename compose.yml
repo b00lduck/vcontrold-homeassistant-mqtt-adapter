@@ -10,6 +10,8 @@ services:
       - .env
     environment:
       - NODE_ENV=production
+    volumes:
+      - ./sensors.json:/app/sensors.json:ro
     networks:
       - default
 

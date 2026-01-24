@@ -31,9 +31,6 @@ COPY --chown=nonroot:nonroot --from=builder /app/node_modules ./node_modules
 # Copy built application from builder
 COPY --chown=nonroot:nonroot --from=builder /app/dist ./dist
 
-# Copy optional sensor config
-COPY --chown=nonroot:nonroot sensors*.json ./
-
 # Distroless images run as nonroot user by default
 # Expose no ports (this is a client application)
 EXPOSE 0
