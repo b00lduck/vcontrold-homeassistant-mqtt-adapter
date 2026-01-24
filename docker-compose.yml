@@ -1,0 +1,18 @@
+version: "3.8"
+
+services:
+  vcontrold-adapter:
+    build: .
+    image: vcontrold-ha-mqtt-adapter:latest
+    container_name: vcontrold-adapter
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      - NODE_ENV=production
+    networks:
+      - default
+
+networks:
+  default:
+    driver: bridge

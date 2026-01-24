@@ -1,0 +1,52 @@
+[
+  {
+    "command": "getTempA",
+    "name": "Air Temperature",
+    "enabled": true
+  },
+  {
+    "command": "getTempWW",
+    "name": "DHW Temperature",
+    "enabled": true
+  },
+  {
+    "command": "getTempKist",
+    "name": "Boiler Temperature",
+    "enabled": true
+  },
+  {
+    "command": "getTempAbg",
+    "name": "Exhaust Temperature",
+    "enabled": true
+  },
+  {
+    "command": "getTempVorlaufHk1",
+    "name": "Forward Flow Temperature",
+    "enabled": true
+  },
+  {
+    "command": "getTempRuecklaufHk1",
+    "name": "Return Flow Temperature",
+    "enabled": true
+  },
+  {
+    "command": "getTempKsoll",
+    "name": "Boiler Target Temperature",
+    "enabled": true
+  },
+  {
+    "command": "getPumpeStatusHk1",
+    "name": "Heating Pump Status",
+    "enabled": true
+  },
+  {
+    "command": "getPumpeStatusSp",
+    "name": "DHW Loading Pump Status",
+    "enabled": true
+  },
+  {
+    "command": "getBrennerLeistung",
+    "name": "Burner Power",
+    "enabled": true
+  }
+]
