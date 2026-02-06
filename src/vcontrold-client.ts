@@ -9,11 +9,21 @@ export interface VcontroldResponse {
   error?: string;
 }
 
+interface QueuedRequest {
+  command: string;
+  resolve: (value: string) => void;
+  reject: (error: Error) => void;
+  timeout: NodeJS.Timeout;
+}
+
 export class VcontroldClient extends EventEmitter {
   private socket: net.Socket | null = null;
   private connected = false;
   private reconnectTimer: NodeJS.Timeout | null = null;
   private responseBuffer = "";
+  private requestQueue: QueuedRequest[] = [];
+  private currentRequest: QueuedRequest | null = null;
+  private isProcessingQueue = false;
 
   constructor() {
     super();
@@ -48,7 +58,6 @@ export class VcontroldClient extends EventEmitter {
     });
 
     this.socket.on("error", (error: Error) => {
-      logger.error("vcontrold connection error:", error.message);
       this.emit("error", error);
     });
 
@@ -75,7 +84,19 @@ export class VcontroldClient extends EventEmitter {
       const trimmed = line.trim();
       if (trimmed) {
         logger.debug(`Received from vcontrold: ${trimmed}`);
-        this.emit("response", trimmed);
+
+        // Deliver response to the current waiting request
+        if (this.currentRequest) {
+          clearTimeout(this.currentRequest.timeout);
+          this.currentRequest.resolve(trimmed);
+          this.currentRequest = null;
+
+          // Process next request in queue
+          this.processNextRequest();
+        } else {
+          // Fallback to event emission if no request is waiting
+          this.emit("response", trimmed);
+        }
       }
     });
   }
@@ -102,21 +123,54 @@ export class VcontroldClient extends EventEmitter {
       }
 
       const timeout = setTimeout(() => {
-        responseListener && this.removeListener("response", responseListener);
+        // Remove from current request if it's this one
+        if (this.currentRequest && this.currentRequest.command === command) {
+          this.currentRequest = null;
+        }
+        // Remove from queue if still waiting
+        this.requestQueue = this.requestQueue.filter(
+          (req) => req.command !== command,
+        );
         reject(new Error(`Command timeout: ${command}`));
+
+        // Process next request after timeout
+        this.processNextRequest();
       }, 5000);
 
-      const responseListener = (response: string) => {
-        clearTimeout(timeout);
-        this.removeListener("response", responseListener);
-        resolve(response);
+      const queuedRequest: QueuedRequest = {
+        command,
+        resolve,
+        reject,
+        timeout,
       };
 
-      this.once("response", responseListener);
+      // Add to queue
+      this.requestQueue.push(queuedRequest);
 
-      logger.debug(`Sending command to vcontrold: ${command}`);
-      this.socket.write(command + "\n");
+      // Start processing if not already processing
+      if (!this.isProcessingQueue) {
+        this.processNextRequest();
+      }
     });
+  }
+
+  private processNextRequest(): void {
+    // Already processing or no requests to process
+    if (this.currentRequest || this.requestQueue.length === 0) {
+      this.isProcessingQueue = false;
+      return;
+    }
+
+    this.isProcessingQueue = true;
+
+    // Get next request from queue
+    this.currentRequest = this.requestQueue.shift()!;
+
+    // Send the command
+    logger.debug(
+      `Sending command to vcontrold: ${this.currentRequest.command}`,
+    );
+    this.socket!.write(this.currentRequest.command + "\n");
   }
 
   public isConnected(): boolean {
@@ -128,6 +182,20 @@ export class VcontroldClient extends EventEmitter {
       clearTimeout(this.reconnectTimer);
       this.reconnectTimer = null;
     }
+
+    // Clear current request and queue
+    if (this.currentRequest) {
+      clearTimeout(this.currentRequest.timeout);
+      this.currentRequest.reject(new Error("Connection closed"));
+      this.currentRequest = null;
+    }
+
+    this.requestQueue.forEach((req) => {
+      clearTimeout(req.timeout);
+      req.reject(new Error("Connection closed"));
+    });
+    this.requestQueue = [];
+    this.isProcessingQueue = false;
 
     if (this.socket) {
       this.socket.destroy();

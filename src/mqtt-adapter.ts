@@ -45,7 +45,7 @@ export class MqttAdapter {
       });
 
       this.client.on("error", (error: Error) => {
-        logger.error("MQTT error:", error.message);
+        logger.error(`MQTT error: ${error.message}`);
         reject(error);
       });
 

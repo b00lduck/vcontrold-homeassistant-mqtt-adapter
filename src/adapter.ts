@@ -116,7 +116,7 @@ export class Adapter {
     });
 
     this.vcontrold.on("error", (error: Error) => {
-      logger.error("vcontrold error:", error);
+      logger.error(`vcontrold error: ${error.message}`);
     });
   }
 
@@ -137,7 +137,7 @@ export class Adapter {
 
       logger.info("Adapter started successfully");
     } catch (error) {
-      logger.error("Failed to start adapter:", error);
+      logger.error(`Failed to start adapter: ${error}`);
       throw error;
     }
   }
@@ -188,7 +188,7 @@ export class Adapter {
           );
         }
       } catch (error) {
-        logger.error(`Error polling sensor ${sensor.command}:`, error);
+        logger.error(`Error polling sensor ${sensor.command}: ${error}`);
       }
     }
   }

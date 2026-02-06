@@ -14,7 +14,7 @@ async function main() {
       await adapter.stop();
       process.exit(0);
     } catch (error) {
-      logger.error("Error during shutdown:", error);
+      logger.error(`Error during shutdown: ${error}`);
       process.exit(1);
     }
   };
@@ -24,19 +24,19 @@ async function main() {
 
   // Handle uncaught errors
   process.on("uncaughtException", (error: Error) => {
-    logger.error("Uncaught exception:", error);
+    logger.error(`Uncaught exception: ${error.message}`, { stack: error.stack });
     shutdown("uncaughtException");
   });
 
   process.on("unhandledRejection", (reason: any) => {
-    logger.error("Unhandled rejection:", reason);
+    logger.error(`Unhandled rejection: ${reason}`);
     shutdown("unhandledRejection");
   });
 
   try {
     await adapter.start();
   } catch (error) {
-    logger.error("Failed to start adapter:", error);
+    logger.error(`Failed to start adapter: ${error}`);
     process.exit(1);
   }
 }
