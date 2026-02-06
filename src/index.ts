@@ -24,7 +24,9 @@ async function main() {
 
   // Handle uncaught errors
   process.on("uncaughtException", (error: Error) => {
-    logger.error(`Uncaught exception: ${error.message}`, { stack: error.stack });
+    logger.error(`Uncaught exception: ${error.message}`, {
+      stack: error.stack,
+    });
     shutdown("uncaughtException");
   });
 
