@@ -102,10 +102,44 @@ pnpm run dev
 
 ## Container Deployment
 
-### Using Podman Compose (Recommended)
+### Using Pre-built Image from GHCR
+
+Pre-built container images are available from GitHub Container Registry:
 
 ```bash
-# Build and start
+# Pull the latest image
+podman pull ghcr.io/b00lduck/vcontrold-ha-mqtt-adapter:latest
+
+# Run container
+podman run -d \
+  --name vcontrold-adapter \
+  --env-file .env \
+  --restart unless-stopped \
+  ghcr.io/b00lduck/vcontrold-ha-mqtt-adapter:latest
+```
+
+Available tags:
+
+- `latest` - Latest build from main branch
+- `v1.0.0`, `1.0`, `1` - Semantic version tags
+- `main`, `develop` - Branch-specific builds
+
+Images are built for `linux/amd64` architecture.
+
+### Using Podman Compose (Recommended)
+
+Update your `compose.yml` to use the pre-built image:
+
+```yaml
+services:
+  vcontrold-adapter:
+    image: ghcr.io/b00lduck/vcontrold-ha-mqtt-adapter:latest
+    restart: unless-stopped
+    env_file: .env
+```
+
+```bash
+# Start
 podman-compose up -d
 
 # View logs
@@ -115,7 +149,7 @@ podman-compose logs -f
 podman-compose down
 ```
 
-### Using Podman/Docker Directly
+### Building Locally
 
 ```bash
 # Build image
@@ -144,6 +178,7 @@ podman run -d \
 | `VCONTROLD_HOST`               | ✅       | -                   | vcontrold hostname or IP address                 |
 | `VCONTROLD_PORT`               | ❌       | `3002`              | vcontrold TCP port                               |
 | `VCONTROLD_RECONNECT_INTERVAL` | ❌       | `5000`              | Reconnection interval in milliseconds            |
+| `VCONTROLD_COMMAND_TIMEOUT`    | ❌       | `25000`             | Command timeout in milliseconds (25 seconds)     |
 | `VCONTROLD_POLL_INTERVAL`      | ❌       | `60000`             | Polling interval in milliseconds (1 minute)      |
 | `LOG_LEVEL`                    | ❌       | `info`              | Logging level (`error`, `warn`, `info`, `debug`) |
 | `HA_DEVICE_NAME`               | ❌       | `Vcontrold Adapter` | Device name in Home Assistant                    |
