@@ -108,14 +108,14 @@ Pre-built container images are available from GitHub Container Registry:
 
 ```bash
 # Pull the latest image
-podman pull ghcr.io/b00lduck/vcontrold-ha-mqtt-adapter:latest
+podman pull ghcr.io/b00lduck/vcontrold-homeassistant-mqtt-adapter:latest
 
 # Run container
 podman run -d \
   --name vcontrold-adapter \
   --env-file .env \
   --restart unless-stopped \
-  ghcr.io/b00lduck/vcontrold-ha-mqtt-adapter:latest
+  ghcr.io/b00lduck/vcontrold-homeassistant-mqtt-adapter:latest
 ```
 
 Available tags:
@@ -133,7 +133,7 @@ Update your `compose.yml` to use the pre-built image:
 ```yaml
 services:
   vcontrold-adapter:
-    image: ghcr.io/b00lduck/vcontrold-ha-mqtt-adapter:latest
+    image: ghcr.io/b00lduck/vcontrold-homeassistant-mqtt-adapter:latest
     restart: unless-stopped
     env_file: .env
 ```
