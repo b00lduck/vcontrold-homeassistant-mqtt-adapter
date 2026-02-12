@@ -54,7 +54,7 @@ jobs:
             # Use PR number as tag
             type=ref,event=pr
             # Use short commit SHA
-            type=sha,prefix={{branch}}-
+            type=sha
 
       - name: Build and push container image
         uses: docker/build-push-action@v5
