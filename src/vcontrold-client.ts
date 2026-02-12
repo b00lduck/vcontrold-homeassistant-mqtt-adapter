@@ -3,6 +3,11 @@ import { EventEmitter } from "node:events";
 import { logger } from "./logger";
 import { config } from "./config";
 
+// vcontrold protocol constants (from prompt.h)
+const PROMPT = "vctrld>";
+const ERR_PREFIX = "ERR:";
+const BYE = "good bye!";
+
 export interface VcontroldResponse {
   command: string;
   value: string;
@@ -14,6 +19,7 @@ interface QueuedRequest {
   resolve: (value: string) => void;
   reject: (error: Error) => void;
   timeout: NodeJS.Timeout;
+  startTime: number;
 }
 
 export class VcontroldClient extends EventEmitter {
@@ -24,6 +30,7 @@ export class VcontroldClient extends EventEmitter {
   private requestQueue: QueuedRequest[] = [];
   private currentRequest: QueuedRequest | null = null;
   private isProcessingQueue = false;
+  private readyForCommands = false;
 
   constructor() {
     super();
@@ -41,9 +48,10 @@ export class VcontroldClient extends EventEmitter {
     this.socket = new net.Socket();
 
     this.socket.on("connect", () => {
-      logger.info("Connected to vcontrold");
+      logger.info("Connected to vcontrold, waiting for initial prompt");
       this.connected = true;
       this.responseBuffer = "";
+      this.readyForCommands = false;
 
       if (this.reconnectTimer) {
         clearTimeout(this.reconnectTimer);
@@ -74,31 +82,55 @@ export class VcontroldClient extends EventEmitter {
   private handleData(data: string): void {
     this.responseBuffer += data;
 
-    // vcontrold typically returns responses line by line
-    const lines = this.responseBuffer.split("\n");
+    // Check if we have the prompt, which indicates end of response
+    const promptIndex = this.responseBuffer.indexOf(PROMPT);
+    if (promptIndex === -1) {
+      // No prompt yet, wait for more data
+      return;
+    }
 
-    // Keep the last incomplete line in the buffer
-    this.responseBuffer = lines.pop() || "";
+    // Extract response up to the prompt
+    const response = this.responseBuffer.substring(0, promptIndex).trim();
+    // Keep everything after the prompt for next response
+    this.responseBuffer = this.responseBuffer.substring(
+      promptIndex + PROMPT.length,
+    );
 
-    lines.forEach((line) => {
-      const trimmed = line.trim();
-      if (trimmed) {
-        logger.debug(`Received from vcontrold: ${trimmed}`);
+    logger.debug(`Received from vcontrold: ${response}`);
 
-        // Deliver response to the current waiting request
-        if (this.currentRequest) {
-          clearTimeout(this.currentRequest.timeout);
-          this.currentRequest.resolve(trimmed);
-          this.currentRequest = null;
+    // Check if this is the initial connection prompt
+    if (!this.readyForCommands) {
+      this.readyForCommands = true;
+      logger.info("Received initial prompt, ready for commands");
+      // Start processing queued requests
+      this.processNextRequest();
+      return;
+    }
 
-          // Process next request in queue
-          this.processNextRequest();
-        } else {
-          // Fallback to event emission if no request is waiting
-          this.emit("response", trimmed);
-        }
+    // Deliver response to the current waiting request
+    if (this.currentRequest) {
+      clearTimeout(this.currentRequest.timeout);
+      const duration = Date.now() - this.currentRequest.startTime;
+
+      // Check for errors
+      if (response.startsWith(ERR_PREFIX)) {
+        logger.warn(`vcontrold error: ${response} (took ${duration}ms)`);
+        this.currentRequest.reject(new Error(response));
+      } else {
+        logger.debug(
+          `Command '${this.currentRequest.command}' completed in ${duration}ms`,
+        );
+        this.currentRequest.resolve(response);
       }
-    });
+
+      this.currentRequest = null;
+
+      // Process next request in queue
+      this.processNextRequest();
+    } else {
+      // Fallback to event emission if no request is waiting
+      this.emit("response", response);
+    }
   }
 
   private scheduleReconnect(): void {
@@ -135,13 +167,14 @@ export class VcontroldClient extends EventEmitter {
 
         // Process next request after timeout
         this.processNextRequest();
-      }, 5000);
+      }, config.vcontrold.commandTimeout);
 
       const queuedRequest: QueuedRequest = {
         command,
         resolve,
         reject,
         timeout,
+        startTime: Date.now(),
       };
 
       // Add to queue
@@ -155,8 +188,12 @@ export class VcontroldClient extends EventEmitter {
   }
 
   private processNextRequest(): void {
-    // Already processing or no requests to process
-    if (this.currentRequest || this.requestQueue.length === 0) {
+    // Already processing, no requests to process, or not ready yet
+    if (
+      this.currentRequest ||
+      this.requestQueue.length === 0 ||
+      !this.readyForCommands
+    ) {
       this.isProcessingQueue = false;
       return;
     }
@@ -196,6 +233,7 @@ export class VcontroldClient extends EventEmitter {
     });
     this.requestQueue = [];
     this.isProcessingQueue = false;
+    this.readyForCommands = false;
 
     if (this.socket) {
       this.socket.destroy();

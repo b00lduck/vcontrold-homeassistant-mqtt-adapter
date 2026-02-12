@@ -54,6 +54,7 @@ export interface Config {
     host: string;
     port: number;
     reconnectInterval: number;
+    commandTimeout: number;
   };
   sensors: SensorDefinition[];
   pollInterval: number;
@@ -91,6 +92,10 @@ export const config: Config = {
     port: parseInt(getEnvOrDefault("VCONTROLD_PORT", "3002"), 10),
     reconnectInterval: parseInt(
       getEnvOrDefault("VCONTROLD_RECONNECT_INTERVAL", "5000"),
+      10,
+    ),
+    commandTimeout: parseInt(
+      getEnvOrDefault("VCONTROLD_COMMAND_TIMEOUT", "25000"),
       10,
     ),
   },
