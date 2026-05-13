@@ -2,6 +2,12 @@ import { VcontroldClient } from "./vcontrold-client";
 import { MqttAdapter, SensorConfig } from "./mqtt-adapter";
 import { logger } from "./logger";
 import { config } from "./config";
+import {
+  commandToName,
+  commandToUniqueId,
+  isPlausible,
+  parseResponse,
+} from "./parsers";
 
 export class Adapter {
   private readonly vcontrold: VcontroldClient;
@@ -25,8 +31,8 @@ export class Adapter {
       const customName = sensorDef.name;
       const sensorConfig: SensorConfig = {
         command: command,
-        name: customName || this.commandToName(command),
-        uniqueId: this.commandToUniqueId(command),
+        name: customName || commandToName(command),
+        uniqueId: commandToUniqueId(command),
         component: "sensor", // default to sensor
       };
 
@@ -91,23 +97,6 @@ export class Adapter {
     logger.info(
       `Configured ${this.sensors.length} sensors: ${this.sensors.map((s) => s.name).join(", ")}`,
     );
-  }
-
-  private commandToName(command: string): string {
-    // Convert command like "getTempA" to "Temperature A"
-    return command
-      .replace(/^get/, "")
-      .replace(/([A-Z])/g, " $1")
-      .trim()
-      .replace(/^./, (str) => str.toUpperCase());
-  }
-
-  private commandToUniqueId(command: string): string {
-    // Convert to snake_case for unique ID
-    return command
-      .replace(/([A-Z])/g, "_$1")
-      .toLowerCase()
-      .replace(/^_/, "");
   }
 
   private setupEventHandlers(): void {
@@ -185,7 +174,7 @@ export class Adapter {
     for (const sensor of this.sensors) {
       try {
         const response = await this.vcontrold.sendCommand(sensor.command);
-        const value = this.parseResponse(response);
+        const value = parseResponse(response);
 
         if (value === null) {
           logger.warn(
@@ -194,7 +183,7 @@ export class Adapter {
           continue;
         }
 
-        if (typeof value === "number" && !this.isPlausible(sensor, value)) {
+        if (typeof value === "number" && !isPlausible(sensor, value)) {
           logger.warn(
             `Implausible value for ${sensor.name} (${sensor.command}): ${value} (range ${sensor.min}..${sensor.max}); skipping publish`,
           );
@@ -207,28 +196,6 @@ export class Adapter {
         logger.error(`Error polling sensor ${sensor.command}: ${error}`);
       }
     }
-  }
-
-  private isPlausible(sensor: SensorConfig, value: number): boolean {
-    if (sensor.min !== undefined && value < sensor.min) return false;
-    if (sensor.max !== undefined && value > sensor.max) return false;
-    return true;
-  }
-
-  private parseResponse(response: string): string | number | null {
-    // vcontrold typically returns responses like "value unit" or just "value"
-    // This is a basic parser - adjust based on your actual vcontrold response format
-
-    const trimmed = response.trim();
-
-    // Try to extract numeric value
-    const match = trimmed.match(/(-?\d+\.?\d*)/);
-    if (match) {
-      const numValue = parseFloat(match[1]);
-      return isNaN(numValue) ? trimmed : numValue;
-    }
-
-    return trimmed || null;
   }
 
   public async stop(): Promise<void> {
