@@ -1,0 +1,13 @@
+.git
+.gitignore
+.github
+node_modules
+dist
+.env
+.env.example
+sensors.json
+*.log
+README.md
+compose.yml
+Containerfile
+.dockerignore
