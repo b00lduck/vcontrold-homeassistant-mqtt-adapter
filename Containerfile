@@ -6,7 +6,6 @@ COPY package.json pnpm-lock.yaml tsconfig.json esbuild.config.js ./
 COPY src ./src
 
 RUN corepack enable \
-    && corepack prepare pnpm@latest --activate \
     && pnpm install --frozen-lockfile \
     && pnpm run build
 
