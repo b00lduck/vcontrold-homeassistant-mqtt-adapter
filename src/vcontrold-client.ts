@@ -155,11 +155,24 @@ export class VcontroldClient extends EventEmitter {
       }
 
       const timeout = setTimeout(() => {
-        // Remove from current request if it's this one
+        // If this request was already in flight, the response stream is now
+        // out of sync with our request queue: vcontrold may still send the
+        // late reply over the socket and it would be misattributed to the
+        // next command. Force a reconnect to guarantee re-sync.
         if (this.currentRequest && this.currentRequest.command === command) {
+          logger.warn(
+            `Command '${command}' timed out while in flight; reconnecting to resync`,
+          );
           this.currentRequest = null;
+          reject(new Error(`Command timeout: ${command}`));
+          // Drop the socket; 'close' handler will schedule a reconnect.
+          if (this.socket) {
+            this.socket.destroy();
+          }
+          return;
         }
-        // Remove from queue if still waiting
+
+        // Otherwise the request was still queued; just drop it.
         this.requestQueue = this.requestQueue.filter(
           (req) => req.command !== command,
         );

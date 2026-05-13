@@ -12,6 +12,10 @@ export interface SensorConfig {
   stateClass?: string;
   payloadOn?: string;
   payloadOff?: string;
+  /** Inclusive lower bound for plausibility check on numeric values. */
+  min?: number;
+  /** Inclusive upper bound for plausibility check on numeric values. */
+  max?: number;
 }
 
 export class MqttAdapter {

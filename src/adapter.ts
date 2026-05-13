@@ -50,6 +50,10 @@ export class Adapter {
         sensorConfig.deviceClass = "temperature";
         sensorConfig.unitOfMeasurement = "°C";
         sensorConfig.stateClass = "measurement";
+        // Viessmann uses sentinels like 128.5 / 229.5 for disconnected sensors;
+        // also guards against response/command desync from vcontrold.
+        sensorConfig.min = -50;
+        sensorConfig.max = 120;
       }
       // Percent sensors (throttle, mixer, power)
       else if (
@@ -59,6 +63,8 @@ export class Adapter {
       ) {
         sensorConfig.unitOfMeasurement = "%";
         sensorConfig.stateClass = "measurement";
+        sensorConfig.min = 0;
+        sensorConfig.max = 100;
 
         if (lowerCmd.includes("leistung") || lowerCmd.includes("power")) {
           sensorConfig.deviceClass = "power_factor";
@@ -69,6 +75,8 @@ export class Adapter {
         sensorConfig.deviceClass = "pressure";
         sensorConfig.unitOfMeasurement = "bar";
         sensorConfig.stateClass = "measurement";
+        sensorConfig.min = 0;
+        sensorConfig.max = 10;
       }
       // Energy sensors
       else if (lowerCmd.includes("energy") || lowerCmd.includes("energie")) {
@@ -179,18 +187,32 @@ export class Adapter {
         const response = await this.vcontrold.sendCommand(sensor.command);
         const value = this.parseResponse(response);
 
-        if (value !== null) {
-          logger.debug(`${sensor.name}: ${value}`);
-          this.mqtt.publishState(sensor.uniqueId, value);
-        } else {
+        if (value === null) {
           logger.warn(
             `Failed to parse response for ${sensor.command}: ${response}`,
           );
+          continue;
         }
+
+        if (typeof value === "number" && !this.isPlausible(sensor, value)) {
+          logger.warn(
+            `Implausible value for ${sensor.name} (${sensor.command}): ${value} (range ${sensor.min}..${sensor.max}); skipping publish`,
+          );
+          continue;
+        }
+
+        logger.debug(`${sensor.name}: ${value}`);
+        this.mqtt.publishState(sensor.uniqueId, value);
       } catch (error) {
         logger.error(`Error polling sensor ${sensor.command}: ${error}`);
       }
     }
+  }
+
+  private isPlausible(sensor: SensorConfig, value: number): boolean {
+    if (sensor.min !== undefined && value < sensor.min) return false;
+    if (sensor.max !== undefined && value > sensor.max) return false;
+    return true;
   }
 
   private parseResponse(response: string): string | number | null {
